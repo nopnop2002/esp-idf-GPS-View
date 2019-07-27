@@ -10,7 +10,7 @@ GPS module like NEO-6M.
 You can use GROVE port as UART RXD.   
 SCL of GROVE is GPIO22.   
 SDA of GROVE is GPIO21.   
-YOu can choice UART RXD GPIO using menuconfig.   
+You can choice UART RXD GPIO using menuconfig.   
 ![View-1](https://user-images.githubusercontent.com/6020549/62000281-f84d0880-b10d-11e9-8c1c-895da5ad20bd.JPG)
 
 # Operation
@@ -18,7 +18,7 @@ When button A(Left button) is pressed, the display starts.
 Press button A(Left button) again to stop the display.
 ![View-2](https://user-images.githubusercontent.com/6020549/62000282-f84d0880-b10d-11e9-95fb-19ef2ebcbae9.JPG)
 
-When button B(Center button) is pressed, the data to be displayed can be selected.
+When button B is pressed, a single message is displayed.
 ![View-3](https://user-images.githubusercontent.com/6020549/62000277-f7b47200-b10d-11e9-9263-84c08dd6985b.JPG)
 ![View-4](https://user-images.githubusercontent.com/6020549/62000278-f7b47200-b10d-11e9-8409-6d61981b655a.JPG)
 
@@ -35,9 +35,12 @@ The SSID is myssid.
 Connect to this access point.   
 
 When button C(Right button) is pressed sometime, Network Information is displayed.
+
 ![Network-1](https://user-images.githubusercontent.com/6020549/62000293-4a8e2980-b10e-11e9-8248-9b651b23ba53.JPG)
 
-Start u-center and connect to M5Stack.
+Start u-center and connect to M5Stack.   
+Default port is 5000.   
+
 ![u-center-1](https://user-images.githubusercontent.com/6020549/62000222-57aa1900-b10c-11e9-9d7d-aa4d32cdafbe.jpg)
 ![u-center-2](https://user-images.githubusercontent.com/6020549/62000218-57118280-b10c-11e9-867b-afa20d1caee3.jpg)
 ![u-center-3](https://user-images.githubusercontent.com/6020549/62000219-57118280-b10c-11e9-84ae-f07103141d4f.JPG)
