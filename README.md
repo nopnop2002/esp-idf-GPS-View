@@ -49,15 +49,19 @@ Default port is 5000.
 
 # Configure
 You can configure UART GPIO port / WiFi setting using menuconfig.
+
 ![Config-1](https://user-images.githubusercontent.com/6020549/62000333-54645c80-b10f-11e9-812a-89df8290bbd9.jpg)
 
 UART GPIO Setting
+
 ![Config-2](https://user-images.githubusercontent.com/6020549/62000334-54645c80-b10f-11e9-877f-e715b2b03b09.jpg)
 
 WiFi Setting
+
 ![Config-3](https://user-images.githubusercontent.com/6020549/62000335-54645c80-b10f-11e9-9c0f-fc35b390fdce.jpg)
 
 u-center Server Setting
+
 ![Config-4](https://user-images.githubusercontent.com/6020549/62000332-54645c80-b10f-11e9-97e5-042499093d7c.jpg)
 
 
