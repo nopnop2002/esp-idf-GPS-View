@@ -1,5 +1,5 @@
 # esp-idf-GPS-View
-GPS NMEA Viewer for M5Stack.
+GPS NMEA Viewer for M5Stack.   
 You can view NMEA message.
 
 ---
