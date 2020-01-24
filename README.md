@@ -10,7 +10,7 @@ GPS module like NEO-6M.
 
 ---
 
-# Wireing
+# Wireing to GPS
 You can use GROVE port as UART RXD.   
 SCL of GROVE(Yellow) is GPIO22.   
 SDA of GROVE(White) is GPIO21.   
