@@ -201,8 +201,13 @@ static void event_handler(void* arg, esp_event_base_t event_base,
 #if CONFIG_AP_MODE
 void wifi_init_softap()
 {
+#if 0
 	tcpip_adapter_init();
 	ESP_ERROR_CHECK(esp_event_loop_create_default());
+#endif
+    ESP_ERROR_CHECK(esp_netif_init());
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
+    esp_netif_create_default_wifi_ap();
 
 	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
 	ESP_ERROR_CHECK(esp_wifi_init(&cfg));
@@ -268,7 +273,10 @@ void wifi_init_sta()
 {
 	s_wifi_event_group = xEventGroupCreate();
 
+#if 0
 	tcpip_adapter_init();
+#endif
+	ESP_ERROR_CHECK(esp_netif_init());
 
 #if CONFIG_STATIC_IP
 
@@ -313,6 +321,7 @@ void wifi_init_sta()
 #endif
 
 	ESP_ERROR_CHECK(esp_event_loop_create_default());
+	esp_netif_create_default_wifi_sta();
 
 	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
 	ESP_ERROR_CHECK(esp_wifi_init(&cfg));
@@ -573,11 +582,11 @@ bool check_nmea_type(int target, NMEA_t * nmea, uint8_t * payload, size_t length
 		if (payload[i] == ',') break;
 		typeLength++; 
 	}
-	ESP_LOGI(TAG, "[%s] typeString=%.*s", __FUNCTION__, typeLength, payload);
-	ESP_LOGI(TAG, "[%s] nmea->typeNum=%d", __FUNCTION__, nmea->typeNum);
+	ESP_LOGD(TAG, "[%s] typeString=%.*s", __FUNCTION__, typeLength, payload);
+	ESP_LOGD(TAG, "[%s] nmea->typeNum=%d", __FUNCTION__, nmea->typeNum);
 	TYPE_t type;
 	type = nmea->type[target-1];
-	ESP_LOGI(TAG,"[%s] type.payload=[%s]",__FUNCTION__, type.payload);
+	ESP_LOGD(TAG,"[%s] type.payload=[%s]",__FUNCTION__, type.payload);
 	if (strncmp((char *)type.payload, (char *)payload, typeLength) == 0) return true;
 	return false;
 }
@@ -862,7 +871,7 @@ void tft(void *pvParameters)
 
 	while(1) {
 		xQueueReceive(xQueueCmd, &cmdBuf, portMAX_DELAY);
-		ESP_LOGI(pcTaskGetTaskName(0),"cmdBuf.command=%d connected=%d", cmdBuf.command, connected);
+		ESP_LOGD(pcTaskGetTaskName(0),"cmdBuf.command=%d connected=%d", cmdBuf.command, connected);
 		if (cmdBuf.command == CMD_START) {
 			get_nmea_type(target_type, &nmea, ascii);
 			lcdDrawFillRect(&dev, xstatus, 0, SCREEN_WIDTH-1, fontHeight-1, BLACK);
@@ -887,7 +896,7 @@ void tft(void *pvParameters)
 			build_nmea_type(&nmea, cmdBuf.payload, cmdBuf.length);
 			if (connected) xQueueSend(xQueueTcp, &cmdBuf, 0);
 			if (!enabled) continue;
-			ESP_LOGI(TAG, "[%s] target_type=%d",__FUNCTION__, target_type);
+			ESP_LOGD(TAG, "[%s] target_type=%d",__FUNCTION__, target_type);
 
 			if (target_type == FORMATTED_RMC) {
 				check = parse_nmea_rmc(&rmcBuf, cmdBuf.payload, cmdBuf.length);
@@ -1377,7 +1386,8 @@ void app_main()
 	uart_driver_install(UART_NUM_1, RX_BUF_SIZE * 2, 0, 20, &uart0_queue, 0);
 
 	//Set uart pattern detect function.
-	uart_enable_pattern_det_intr(UART_NUM_1, 0x0a, 1, 10000, 10, 10); // pattern is LF
+	//uart_enable_pattern_det_intr(UART_NUM_1, 0x0a, 1, 10000, 10, 10); // pattern is LF
+	uart_enable_pattern_det_baud_intr(UART_NUM_1, 0x0a, 1, 9, 0, 0); // pattern is LF
 	//Reset the pattern queue length to record at most 20 pattern positions.
 	uart_pattern_queue_reset(UART_NUM_1, 20);
 	ESP_LOGI(TAG, "Initializing UART done");
