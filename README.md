@@ -63,8 +63,8 @@ When button C(Right button) is pressed, Formatted-View is displayed.
 # GPS Server for u-center
 u-center is a very powerful NMEA message analysis tool.   
 You can use M5Stack as u-center's GPS Server.   
-M5Stack is acting as a router.   
-The SSID is 'myssid'.   
+M5Stack acts as a router.   
+The SSID of M5Stack is 'myssid'.   
 Connect to this access point.   
 
 When button C(Right button) is pressed sometime, Network Information is displayed.
