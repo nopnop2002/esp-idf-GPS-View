@@ -1261,22 +1261,21 @@ void tcp_server(void *pvParameters)
 		while(connected) {
 			xQueueReceive(xQueueTcp, &cmdBuf, portMAX_DELAY);
 			ESP_LOGD(pcTaskGetTaskName(0), "cmdBuf.command=%d", cmdBuf.command);
-			if (cmdBuf.command == CMD_NMEA) {
-				ESP_LOGD(pcTaskGetTaskName(0), "[%s] payload=[%.*s]",__FUNCTION__, cmdBuf.length, cmdBuf.payload);
-				/* write something */
-				ret = lwip_write(dstSocket, cmdBuf.payload, cmdBuf.length);
+			if (cmdBuf.command != CMD_NMEA) continue;
+			ESP_LOGD(pcTaskGetTaskName(0), "[%s] payload=[%.*s]",__FUNCTION__, cmdBuf.length, cmdBuf.payload);
+			/* write something */
+			ret = lwip_write(dstSocket, cmdBuf.payload, cmdBuf.length);
 #if 0
 				uint8_t buffer[64];
 				sprintf((char *)buffer,"$GPGSA,A,1,,,,,,,,,,,,,99.99,99.99,99.99*30\r\n");
 				ret = lwip_write(dstSocket, buffer, strlen((char *)buffer));
 #endif
-				ESP_LOGI(pcTaskGetTaskName(0), "lwip_write ret=%d", ret);
-				if (ret < 0) {
-					cmdBuf.command = CMD_DISCONNECT;
-					xQueueSend(xQueueCmd, &cmdBuf, 0); // Send DISCONNECT
-					connected = 0;
-				}
-			} // end while
+			ESP_LOGI(pcTaskGetTaskName(0), "lwip_write ret=%d", ret);
+			if (ret < 0) {
+				cmdBuf.command = CMD_DISCONNECT;
+				xQueueSend(xQueueCmd, &cmdBuf, 0); // Send DISCONNECT
+				connected = 0;
+			}
 		} // end while
 	} // end for
 
