@@ -25,6 +25,16 @@ You can choice UART RXD GPIO using menuconfig.
 
 ---
 
+# Install
+```
+git clone https://github.com/nopnop2002/esp-idf-GPS-View
+cd esp-idf-GPS-View
+make menuconfig
+make install
+```
+
+---
+
 # Configure
 You can configure UART GPIO port / WiFi setting using menuconfig.
 
