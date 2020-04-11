@@ -207,9 +207,9 @@ void wifi_init_softap()
 	tcpip_adapter_init();
 	ESP_ERROR_CHECK(esp_event_loop_create_default());
 #endif
-    ESP_ERROR_CHECK(esp_netif_init());
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
-    esp_netif_create_default_wifi_ap();
+	ESP_ERROR_CHECK(esp_netif_init());
+	ESP_ERROR_CHECK(esp_event_loop_create_default());
+	esp_netif_create_default_wifi_ap();
 
 	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
 	ESP_ERROR_CHECK(esp_wifi_init(&cfg));
@@ -470,7 +470,11 @@ void buttonA(void *pvParameters)
 				if (level == 1) break;
 				vTaskDelay(1);
 			}
-			xQueueSend(xQueueCmd, &cmdBuf, 0);
+
+			// Post an item to the front of a queue.
+			if (xQueueSendToFront(xQueueCmd, &cmdBuf, portMAX_DELAY) != pdPASS) {
+				ESP_LOGE(pcTaskGetTaskName(0), "xQueueSend Fail");
+			}
 			if (cmdBuf.command == CMD_START) {
 				cmdBuf.command = CMD_STOP;
 			} else {
@@ -501,7 +505,11 @@ void buttonB(void *pvParameters)
 				if (level == 1) break;
 				vTaskDelay(1);
 			}
-			xQueueSend(xQueueCmd, &cmdBuf, 0);
+
+			// Post an item to the front of a queue.
+			if (xQueueSendToFront(xQueueCmd, &cmdBuf, portMAX_DELAY) != pdPASS) {
+				ESP_LOGE(pcTaskGetTaskName(0), "xQueueSend Fail");
+			}
 		}
 		vTaskDelay(1);
 	}
@@ -530,16 +538,11 @@ void buttonC(void *pvParameters)
 				if (level == 1) break;
 				vTaskDelay(1);
 			}
-			xQueueSend(xQueueCmd, &cmdBuf, 0);
-#if 0
-			if (cmdBuf.command == CMD_RMC) {
-				cmdBuf.command = CMD_GGA;
-			} else if (cmdBuf.command == CMD_GGA) {
-				cmdBuf.command = CMD_VTG;
-			} else {
-				cmdBuf.command = CMD_RMC;
+
+			// Post an item to the front of a queue.
+			if (xQueueSendToFront(xQueueCmd, &cmdBuf, portMAX_DELAY) != pdPASS) {
+				ESP_LOGE(pcTaskGetTaskName(0), "xQueueSend Fail");
 			}
-#endif
 			cmdIndex++;
 			if (cmdIndex == 4) cmdIndex = 0;
 			cmdBuf.command = CMD_TABLE[cmdIndex];
@@ -620,7 +623,7 @@ bool parse_nmea_rmc(RMC_t *rmc, uint8_t * payload, size_t length) {
 		if (payload[i] == ',') break;
 		typeLength++; 
 	}
-	ESP_LOGI(TAG, "[%s] typeString=%.*s", __FUNCTION__, typeLength, payload);
+	ESP_LOGD(TAG, "[%s] typeString=%.*s", __FUNCTION__, typeLength, payload);
 	if (strncmp((char *)payload, "$GPRMC", typeLength) != 0) return false;
 
 	int index = 0;
@@ -688,7 +691,7 @@ bool parse_nmea_gga(GGA_t *gga, uint8_t * payload, size_t length) {
 		if (payload[i] == ',') break;
 		typeLength++; 
 	}
-	ESP_LOGI(TAG, "[%s] typeString=%.*s", __FUNCTION__, typeLength, payload);
+	ESP_LOGD(TAG, "[%s] typeString=%.*s", __FUNCTION__, typeLength, payload);
 	if (strncmp((char *)payload, "$GPGGA", typeLength) != 0) return false;
 
 	int index = 0;
@@ -763,7 +766,7 @@ bool parse_nmea_vtg(VTG_t *vtg, uint8_t * payload, size_t length) {
 		if (payload[i] == ',') break;
 		typeLength++; 
 	}
-	ESP_LOGI(TAG, "[%s] typeString=%.*s", __FUNCTION__, typeLength, payload);
+	ESP_LOGD(TAG, "[%s] typeString=%.*s", __FUNCTION__, typeLength, payload);
 	if (strncmp((char *)payload, "$GPVTG", typeLength) != 0) return false;
 
 	int index = 0;
@@ -870,6 +873,7 @@ void tft(void *pvParameters)
 	bool check;
 	bool connected = false;
 	bool updateConnected = false;
+	int watchdogCounter = 0;
 
 	while(1) {
 		xQueueReceive(xQueueCmd, &cmdBuf, portMAX_DELAY);
@@ -895,10 +899,15 @@ void tft(void *pvParameters)
 			updateConnected = true;
 
 		} else if (cmdBuf.command == CMD_NMEA) {
+			watchdogCounter++;
+			if (watchdogCounter == 10) {
+				vTaskDelay(1); // Avoid WatchDog trigger
+				watchdogCounter = 0;
+			}
 			build_nmea_type(&nmea, cmdBuf.payload, cmdBuf.length);
 			if (connected) xQueueSend(xQueueTcp, &cmdBuf, 0);
 			if (!enabled) continue;
-			ESP_LOGD(TAG, "[%s] target_type=%d",__FUNCTION__, target_type);
+			ESP_LOGD(pcTaskGetTaskName(0), "target_type=%d", target_type);
 
 			if (target_type == FORMATTED_RMC) {
 				check = parse_nmea_rmc(&rmcBuf, cmdBuf.payload, cmdBuf.length);
@@ -1287,7 +1296,6 @@ void tcp_server(void *pvParameters)
 
 }
 
-
 static void SPIFFS_Directory(char * path) {
 	DIR* dir = opendir(path);
 	assert(dir != NULL);
@@ -1400,10 +1408,11 @@ void app_main()
 	xQueueTcp = xQueueCreate( 10, sizeof(CMD_t) );
 	configASSERT( xQueueTcp );
 
-	xTaskCreate(buttonA, "START", 1024*2, NULL, 2, NULL);
-	xTaskCreate(buttonB, "STOP", 1024*2, NULL, 2, NULL);
-	xTaskCreate(buttonC, "SELECT", 1024*2, NULL, 2, NULL);
-	xTaskCreate(tft, "TFT", 1024*4, NULL, 5, NULL);
+	// Create task
+	xTaskCreate(buttonA, "BUTTON-A", 1024*2, NULL, 2, NULL);
+	xTaskCreate(buttonB, "BUTTON-B", 1024*2, NULL, 2, NULL);
+	xTaskCreate(buttonC, "BUTTON-C", 1024*2, NULL, 2, NULL);
+	xTaskCreate(tft, "TFT", 1024*8, NULL, 5, NULL);
 	xTaskCreate(tcp_server, "TCP", 1024*4, NULL, 5, NULL);
 	//Create a task to handler UART event from ISR
 	xTaskCreate(uart_event_task, "uart_event", 1024*4, NULL, 5, NULL);
