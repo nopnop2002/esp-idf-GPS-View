@@ -5,8 +5,8 @@ You can view NMEA message.
 ---
 
 # Hardware requirements
-M5Stack.  
-GPS module like NEO-6M.
+- M5Stack   
+- GPS module like NEO-6M   
 
 ---
 
