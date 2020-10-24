@@ -25,7 +25,7 @@ You can use GROVE port as UART RXD.
 |GND|--|GROVE(Black Line)|
 |TXD|--|GROVE(Yellow Line or White Line)(*1)|
 
-(*1)
+(*1)   
 GROVE(Yellow Line) is GPIO22.   
 GROVE(White Line) is GPIO21.   
 
