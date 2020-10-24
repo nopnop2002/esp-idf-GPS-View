@@ -19,7 +19,7 @@ Because uart_enable_pattern_det_intr() has been changed to uart_enable_pattern_d
 # Wireing to GPS
 You can use GROVE port as UART RXD.   
 
-|GPS||ESP32|
+|GPS||M5Stack|
 |:-:|:-:|:-:|
 |VCC|--|GROVE(Red Line)|
 |GND|--|GROVE(Black Line)|
