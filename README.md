@@ -11,8 +11,8 @@ You can view NMEA message.
 ---
 
 # Software requirements
-esp-idf ver4.1 or later.   
-Because uart_enable_pattern_det_intr() has been changed to uart_enable_pattern_det_baud_intr().
+- esp-idf ver4.1 or later.   
+ Because uart_enable_pattern_det_intr() has been changed to uart_enable_pattern_det_baud_intr().
 
 ---
 
