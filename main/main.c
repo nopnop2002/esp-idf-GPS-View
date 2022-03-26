@@ -1,10 +1,10 @@
 /* GPS NMEA Viewer
 
-   This example code is in the Public Domain (or CC0 licensed, at your option.)
+	 This example code is in the Public Domain (or CC0 licensed, at your option.)
 
-   Unless required by applicable law or agreed to in writing, this
-   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-   CONDITIONS OF ANY KIND, either express or implied.
+	 Unless required by applicable law or agreed to in writing, this
+	 software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+	 CONDITIONS OF ANY KIND, either express or implied.
 */
 #include <stdio.h>
 #include <string.h>
@@ -135,15 +135,15 @@ static NETWORK_t myNetwork;
 
 /* This project use WiFi configuration that you can set via 'make menuconfig'.
 
-   If you'd rather not, just change the below entries to strings with
-   the config you want - ie #define EXAMPLE_WIFI_SSID "mywifissid"
+	 If you'd rather not, just change the below entries to strings with
+	 the config you want - ie #define EXAMPLE_WIFI_SSID "mywifissid"
 */
 
-#define EXAMPLE_ESP_WIFI_SSID	   CONFIG_ESP_WIFI_SSID
-#define EXAMPLE_ESP_WIFI_PASS	   CONFIG_ESP_WIFI_PASSWORD
+#define EXAMPLE_ESP_WIFI_SSID		 CONFIG_ESP_WIFI_SSID
+#define EXAMPLE_ESP_WIFI_PASS		 CONFIG_ESP_WIFI_PASSWORD
 
 #if CONFIG_AP_MODE
-#define EXAMPLE_MAX_STA_CONN	   CONFIG_ESP_MAX_STA_CONN
+#define EXAMPLE_MAX_STA_CONN		 CONFIG_ESP_MAX_STA_CONN
 #endif
 #if CONFIG_ST_MODE
 #define EXAMPLE_ESP_MAXIMUM_RETRY  CONFIG_ESP_MAXIMUM_RETRY
@@ -203,13 +203,21 @@ static void event_handler(void* arg, esp_event_base_t event_base,
 #if CONFIG_AP_MODE
 void wifi_init_softap()
 {
-#if 0
-	tcpip_adapter_init();
-	ESP_ERROR_CHECK(esp_event_loop_create_default());
-#endif
+	ESP_LOGI(TAG,"ESP-IDF Ver%d.%d", ESP_IDF_VERSION_MAJOR, ESP_IDF_VERSION_MINOR);
+	ESP_LOGI(TAG,"ESP_IDF_VERSION %d", ESP_IDF_VERSION);
+
+//#if ESP_IDF_VERSION_MAJOR >= 4 && ESP_IDF_VERSION_MINOR >= 1
+#if ESP_IDF_VERSION > ESP_IDF_VERSION_VAL(4, 1, 0)
+	ESP_LOGI(TAG,"ESP-IDF esp_netif");
 	ESP_ERROR_CHECK(esp_netif_init());
 	ESP_ERROR_CHECK(esp_event_loop_create_default());
 	esp_netif_create_default_wifi_ap();
+#else
+	ESP_LOGE(TAG,"esp-idf version 4.1 or higher required");
+	while(1) {
+		vTaskDelay(1);
+	}
+#endif // ESP_IDF_VERSION
 
 	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
 	ESP_ERROR_CHECK(esp_wifi_init(&cfg));
@@ -219,14 +227,14 @@ void wifi_init_softap()
 
 	wifi_config_t wifi_config = {
 		.ap = {
-			.ssid = EXAMPLE_ESP_WIFI_SSID,
-			.ssid_len = strlen(EXAMPLE_ESP_WIFI_SSID),
-			.password = EXAMPLE_ESP_WIFI_PASS,
-			.max_connection = EXAMPLE_MAX_STA_CONN,
+			.ssid = CONFIG_ESP_WIFI_SSID,
+			.ssid_len = strlen(CONFIG_ESP_WIFI_SSID),
+			.password = CONFIG_ESP_WIFI_PASSWORD,
+			.max_connection = CONFIG_ESP_MAX_STA_CONN,
 			.authmode = WIFI_AUTH_WPA_WPA2_PSK
 		},
 	};
-	if (strlen(EXAMPLE_ESP_WIFI_PASS) == 0) {
+	if (strlen(CONFIG_ESP_WIFI_PASSWORD) == 0) {
 		wifi_config.ap.authmode = WIFI_AUTH_OPEN;
 	}
 
@@ -235,50 +243,31 @@ void wifi_init_softap()
 	ESP_ERROR_CHECK(esp_wifi_start());
 
 	ESP_LOGI(TAG, "wifi_init_softap finished. SSID:%s password:%s",
-			 EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
+			 CONFIG_ESP_WIFI_SSID, CONFIG_ESP_WIFI_PASSWORD);
 }
-#endif
+#endif // CONFIG_AP_MODE
 
 #if CONFIG_ST_MODE
-bool parseAddress(int * ip, char * text) {
-	ESP_LOGD(TAG, "parseAddress text=[%s]",text);
-	int len = strlen(text);
-	int octet = 0;
-	char buf[4];
-	int index = 0;
-	for(int i=0;i<len;i++) {
-		char c = text[i];
-		if (c == '.') {
-			ESP_LOGD(TAG, "buf=[%s] octet=%d", buf, octet);
-			ip[octet] = strtol(buf, NULL, 10);
-			octet++;
-			index = 0;
-		} else {
-			if (index == 3) return false;
-			if (c < '0' || c > '9') return false;
-			buf[index++] = c;
-			buf[index] = 0;
-		}
-	}
-
-	if (strlen(buf) > 0) {
-		ESP_LOGD(TAG, "buf=[%s] octet=%d", buf, octet);
-		ip[octet] = strtol(buf, NULL, 10);
-		octet++;
-	}
-	if (octet != 4) return false;
-	return true;
-
-}
-
 void wifi_init_sta()
 {
 	s_wifi_event_group = xEventGroupCreate();
 
-#if 0
-	tcpip_adapter_init();
-#endif
+	ESP_LOGI(TAG,"ESP-IDF Ver%d.%d", ESP_IDF_VERSION_MAJOR, ESP_IDF_VERSION_MINOR);
+	ESP_LOGI(TAG,"ESP_IDF_VERSION %d", ESP_IDF_VERSION);
+
+//#if ESP_IDF_VERSION_MAJOR >= 4 && ESP_IDF_VERSION_MINOR >= 1
+#if ESP_IDF_VERSION > ESP_IDF_VERSION_VAL(4, 1, 0)
+	ESP_LOGI(TAG,"ESP-IDF esp_netif");
 	ESP_ERROR_CHECK(esp_netif_init());
+	ESP_ERROR_CHECK(esp_event_loop_create_default());
+	esp_netif_t *netif = esp_netif_create_default_wifi_sta();
+	assert(netif);
+#else
+	ESP_LOGE(TAG,"esp-idf version 4.1 or higher required");
+	while(1) {
+		vTaskDelay(1);
+	}
+#endif // ESP_IDF_VERSION
 
 #if CONFIG_STATIC_IP
 
@@ -286,44 +275,34 @@ void wifi_init_sta()
 	ESP_LOGI(TAG, "CONFIG_STATIC_GW_ADDRESS=[%s]",CONFIG_STATIC_GW_ADDRESS);
 	ESP_LOGI(TAG, "CONFIG_STATIC_NM_ADDRESS=[%s]",CONFIG_STATIC_NM_ADDRESS);
 
-	int ip[4];
-	bool ret = parseAddress(ip, CONFIG_STATIC_IP_ADDRESS);
-	ESP_LOGI(TAG, "parseAddress ret=%d ip=%d.%d.%d.%d", ret, ip[0], ip[1], ip[2], ip[3]);
-	if (!ret) {
-		ESP_LOGE(TAG, "CONFIG_STATIC_IP_ADDRESS [%s] not correct", CONFIG_STATIC_IP_ADDRESS);
-	while(1) { vTaskDelay(1); }
-	}
-
-	int gw[4];
-	ret = parseAddress(gw, CONFIG_STATIC_GW_ADDRESS);
-	ESP_LOGI(TAG, "parseAddress ret=%d gw=%d.%d.%d.%d", ret, gw[0], gw[1], gw[2], gw[3]);
-	if (!ret) {
-		ESP_LOGE(TAG, "CONFIG_STATIC_GW_ADDRESS [%s] not correct", CONFIG_STATIC_GW_ADDRESS);
-	while(1) { vTaskDelay(1); }
-	}
-
-	int nm[4];
-	ret = parseAddress(nm, CONFIG_STATIC_NM_ADDRESS);
-	ESP_LOGI(TAG, "parseAddress ret=%d nm=%d.%d.%d.%d", ret, nm[0], nm[1], nm[2], nm[3]);
-	if (!ret) {
-		ESP_LOGE(TAG, "CONFIG_STATIC_NM_ADDRESS [%s] not correct", CONFIG_STATIC_NM_ADDRESS);
-	while(1) { vTaskDelay(1); }
-	}
-
-	tcpip_adapter_dhcpc_stop(TCPIP_ADAPTER_IF_STA);
+	/* Stop DHCP client */
+	ESP_ERROR_CHECK(esp_netif_dhcpc_stop(netif));
+	ESP_LOGI(TAG, "Stop DHCP Services");
 
 	/* Set STATIC IP Address */
-	tcpip_adapter_ip_info_t ipInfo;
-	//IP4_ADDR(&ipInfo.ip, 192,168,10,100);
-	IP4_ADDR(&ipInfo.ip, ip[0], ip[1], ip[2], ip[3]);
-	IP4_ADDR(&ipInfo.gw, gw[0], gw[1], gw[2], gw[3]);
-	IP4_ADDR(&ipInfo.netmask, nm[0], nm[1], nm[2], nm[3]);
-	tcpip_adapter_set_ip_info(TCPIP_ADAPTER_IF_STA, &ipInfo);
+	esp_netif_ip_info_t ip_info;
+	memset(&ip_info, 0 , sizeof(esp_netif_ip_info_t));
+	ip_info.ip.addr = ipaddr_addr(CONFIG_STATIC_IP_ADDRESS);
+	ip_info.netmask.addr = ipaddr_addr(CONFIG_STATIC_NM_ADDRESS);
+	ip_info.gw.addr = ipaddr_addr(CONFIG_STATIC_GW_ADDRESS);;
+	esp_netif_set_ip_info(netif, &ip_info);
 
-#endif
+	/*
+	I referred from here.
+	https://www.esp32.com/viewtopic.php?t=5380
+	if we should not be using DHCP (for example we are using static IP addresses),
+	then we need to instruct the ESP32 of the locations of the DNS servers manually.
+	Google publicly makes available two name servers with the addresses of 8.8.8.8 and 8.8.4.4.
+	*/
 
-	ESP_ERROR_CHECK(esp_event_loop_create_default());
-	esp_netif_create_default_wifi_sta();
+	ip_addr_t d;
+	d.type = IPADDR_TYPE_V4;
+	d.u_addr.ip4.addr = 0x08080808; //8.8.8.8 dns
+	dns_setserver(0, &d);
+	d.u_addr.ip4.addr = 0x08080404; //8.8.4.4 dns
+	dns_setserver(1, &d);
+
+#endif // CONFIG_STATIC_IP
 
 	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
 	ESP_ERROR_CHECK(esp_wifi_init(&cfg));
@@ -333,8 +312,8 @@ void wifi_init_sta()
 
 	wifi_config_t wifi_config = {
 		.sta = {
-			.ssid = EXAMPLE_ESP_WIFI_SSID,
-			.password = EXAMPLE_ESP_WIFI_PASS
+			.ssid = CONFIG_ESP_WIFI_SSID,
+			.password = CONFIG_ESP_WIFI_PASSWORD
 		},
 	};
 	ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
@@ -343,25 +322,25 @@ void wifi_init_sta()
 
 	ESP_LOGI(TAG, "wifi_init_sta finished.");
 	ESP_LOGI(TAG, "connect to ap SSID:%s password:%s",
-			 EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
+			 CONFIG_ESP_WIFI_SSID, CONFIG_ESP_WIFI_PASSWORD);
 
 	// wait for IP_EVENT_STA_GOT_IP
 	while(1) {
 		/* Wait forever for WIFI_CONNECTED_BIT to be set within the event group.
-		   Clear the bits beforeexiting. */
+		Clear the bits beforeexiting. */
 		EventBits_t uxBits = xEventGroupWaitBits(s_wifi_event_group,
-		   WIFI_CONNECTED_BIT, /* The bits within the event group to waitfor. */
-		   pdTRUE,		  /* WIFI_CONNECTED_BIT should be cleared before returning. */
-		   pdFALSE,		  /* Don't waitfor both bits, either bit will do. */
-		   portMAX_DELAY);/* Wait forever. */
-	   if ( ( uxBits & WIFI_CONNECTED_BIT ) == WIFI_CONNECTED_BIT ){
-		   ESP_LOGI(TAG, "WIFI_CONNECTED_BIT");
-		   break;
-	   }
+			WIFI_CONNECTED_BIT, /* The bits within the event group to waitfor. */
+			pdTRUE,			/* WIFI_CONNECTED_BIT should be cleared before returning. */
+			pdFALSE,			/* Don't waitfor both bits, either bit will do. */
+			portMAX_DELAY);/* Wait forever. */
+		if ( ( uxBits & WIFI_CONNECTED_BIT ) == WIFI_CONNECTED_BIT ){
+			ESP_LOGI(TAG, "WIFI_CONNECTED_BIT");
+			break;
+		 }
 	}
 	ESP_LOGI(TAG, "Got IP Address.");
 }
-#endif
+#endif // CONFIG_ST_MODE
 
 
 static void uart_event_task(void *pvParameters)
@@ -1312,8 +1291,8 @@ void app_main()
 	// Initialize NVS
 	esp_err_t ret = nvs_flash_init();
 	if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-	  ESP_ERROR_CHECK(nvs_flash_erase());
-	  ret = nvs_flash_init();
+		ESP_ERROR_CHECK(nvs_flash_erase());
+		ret = nvs_flash_init();
 	}
 	ESP_ERROR_CHECK(ret);
 	
