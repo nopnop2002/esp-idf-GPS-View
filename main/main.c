@@ -20,6 +20,8 @@
 #include "esp_vfs.h"
 #include "esp_spiffs.h"
 #include "nvs_flash.h"
+#include "mdns.h"
+#include "lwip/dns.h"
 
 #include "cmd.h"
 
@@ -170,23 +172,27 @@ void wifi_init_sta()
 	esp_event_handler_instance_t instance_got_ip;
 	ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
 									ESP_EVENT_ANY_ID,
-									&event_handler,
+									&wifi_event_handler,
 									NULL,
 									&instance_any_id));
 	ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT,
 									IP_EVENT_STA_GOT_IP,
-									&event_handler,
+									&wifi_event_handler,
 									NULL,
 									&instance_got_ip));
 
 	wifi_config_t wifi_config = {
 		.sta = {
 			.ssid = CONFIG_ESP_WIFI_SSID,
-			.password = CONFIG_ESP_WIFI_PASSWORD
+			.password = CONFIG_ESP_WIFI_PASSWORD,
 			/* Setting a password implies station will connect to all security modes including WEP/WPA.
 			 * However these modes are deprecated and not advisable to be used. Incase your Access point
 			 * doesn't support WPA2, these mode can be enabled by commenting below line */
-			.threshold.authmode = ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD,
+			.threshold.authmode = WIFI_AUTH_WPA2_PSK,
+			.pmf_cfg = {
+				.capable = true,
+				.required = false
+			},
 		},
 	};
 	ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
@@ -206,9 +212,9 @@ void wifi_init_sta()
 	/* xEventGroupWaitBits() returns the bits before the call returned, hence we can test which event actually
 	 * happened. */
 	if (bits & WIFI_CONNECTED_BIT) {
-		ESP_LOGI(TAG, "connected to ap SSID:%s password:%s", EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
+		ESP_LOGI(TAG, "connected to ap SSID:%s password:%s", CONFIG_ESP_WIFI_SSID, CONFIG_ESP_WIFI_PASSWORD);
 	} else if (bits & WIFI_FAIL_BIT) {
-		ESP_LOGI(TAG, "Failed to connect to SSID:%s, password:%s", EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
+		ESP_LOGI(TAG, "Failed to connect to SSID:%s, password:%s", CONFIG_ESP_WIFI_SSID, CONFIG_ESP_WIFI_PASSWORD);
 	} else {
 		ESP_LOGE(TAG, "UNEXPECTED EVENT");
 	}
