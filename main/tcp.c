@@ -90,7 +90,7 @@ void tcp_server(void *pvParameters)
 				sprintf((char *)buffer,"$GPGSA,A,1,,,,,,,,,,,,,99.99,99.99,99.99*30\r\n");
 				ret = lwip_write(dstSocket, buffer, strlen((char *)buffer));
 #endif
-			ESP_LOGI(pcTaskGetName(0), "lwip_write ret=%d", ret);
+			ESP_LOGD(pcTaskGetName(0), "lwip_write ret=%d", ret);
 			if (ret < 0) {
 				cmdBuf.command = CMD_DISCONNECT;
 				xQueueSend(xQueueCmd, &cmdBuf, 0); // Send DISCONNECT
