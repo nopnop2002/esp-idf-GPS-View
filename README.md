@@ -55,6 +55,7 @@ The GPS module has TX and RX, but this project uses only TX.
 ![config-wifi-1](https://user-images.githubusercontent.com/6020549/167273811-072d0e0b-2495-4327-8d71-a3e66f0839c6.jpg)
 
 - For ST Mode
+
 ![config-wifi-2](https://user-images.githubusercontent.com/6020549/167273739-88195db2-e72c-4c37-b79b-f00c9bdfd6b6.jpg)
 
 ## TCP Server Setting
@@ -101,4 +102,5 @@ Default port is 5000.
 
 
 # References
-Repository without UI is [here](https://github.com/nopnop2002/esp-idf-GPS-Repeater).   
+https://github.com/nopnop2002/esp-idf-GPS-Repeater
+
