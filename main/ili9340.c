@@ -13,34 +13,58 @@
 #define TAG "ILI9340"
 #define	_DEBUG_ 0
 
-static const int GPIO_MOSI = 23;
-static const int GPIO_SCLK = 18;
+#ifdef CONFIG_IDF_TARGET_ESP32
+#define LCD_HOST HSPI_HOST
+#elif defined CONFIG_IDF_TARGET_ESP32S2
+#define LCD_HOST SPI2_HOST
+#elif defined CONFIG_IDF_TARGET_ESP32S3
+#define LCD_HOST SPI2_HOST
+#elif defined CONFIG_IDF_TARGET_ESP32C3
+#define LCD_HOST SPI2_HOST
+#endif
+
+//static const int GPIO_MOSI = 23;
+//static const int GPIO_SCLK = 18;
 
 static const int SPI_Command_Mode = 0;
 static const int SPI_Data_Mode = 1;
-//static const int SPI_Frequency = SPI_MASTER_FREQ_20M;
-////static const int SPI_Frequency = SPI_MASTER_FREQ_26M;
-static const int SPI_Frequency = SPI_MASTER_FREQ_40M;
-////static const int SPI_Frequency = SPI_MASTER_FREQ_80M;
+//static const int TFT_Frequency = SPI_MASTER_FREQ_20M;
+////static const int TFT_Frequency = SPI_MASTER_FREQ_26M;
+static const int TFT_Frequency = SPI_MASTER_FREQ_40M;
+////static const int TFT_Frequency = SPI_MASTER_FREQ_80M;
 
+#if CONFIG_XPT2046
+static const int XPT_Frequency = 1*1000*1000;
+//static const int XPT_Frequency = 2*1000*1000;
+//static const int XPT_Frequency = 4*1000*1000;
 
-void spi_master_init(TFT_t * dev, int16_t GPIO_CS, int16_t GPIO_DC, int16_t GPIO_RESET, int16_t GPIO_BL)
+//#define GPIO_MISO 19
+//#define XPT_CS	4
+//#define XPT_IRQ 5
+#endif
+
+void spi_master_init(TFT_t * dev, int16_t GPIO_MOSI, int16_t GPIO_SCLK, int16_t TFT_CS, int16_t GPIO_DC, int16_t GPIO_RESET, int16_t GPIO_BL,
+	int16_t GPIO_MISO, int16_t XPT_CS, int16_t XPT_IRQ)
 {
 	esp_err_t ret;
 
-	ESP_LOGI(TAG, "GPIO_CS=%d",GPIO_CS);
-	gpio_pad_select_gpio( GPIO_CS );
-	gpio_set_direction( GPIO_CS, GPIO_MODE_OUTPUT );
-	gpio_set_level( GPIO_CS, 0 );
+	ESP_LOGI(TAG, "TFT_CS=%d",TFT_CS);
+	//gpio_pad_select_gpio( TFT_CS );
+	gpio_reset_pin( TFT_CS );
+	gpio_set_direction( TFT_CS, GPIO_MODE_OUTPUT );
+	//gpio_set_level( TFT_CS, 0 );
+	gpio_set_level( TFT_CS, 1 );
 
 	ESP_LOGI(TAG, "GPIO_DC=%d",GPIO_DC);
-	gpio_pad_select_gpio( GPIO_DC );
+	//gpio_pad_select_gpio( GPIO_DC );
+	gpio_reset_pin( GPIO_DC );
 	gpio_set_direction( GPIO_DC, GPIO_MODE_OUTPUT );
 	gpio_set_level( GPIO_DC, 0 );
 
 	ESP_LOGI(TAG, "GPIO_RESET=%d",GPIO_RESET);
 	if ( GPIO_RESET >= 0 ) {
-		gpio_pad_select_gpio( GPIO_RESET );
+		//gpio_pad_select_gpio( GPIO_RESET );
+		gpio_reset_pin( GPIO_RESET );
 		gpio_set_direction( GPIO_RESET, GPIO_MODE_OUTPUT );
 		gpio_set_level( GPIO_RESET, 0 );
 		vTaskDelay( pdMS_TO_TICKS( 100 ) );
@@ -49,11 +73,21 @@ void spi_master_init(TFT_t * dev, int16_t GPIO_CS, int16_t GPIO_DC, int16_t GPIO
 
 	ESP_LOGI(TAG, "GPIO_BL=%d",GPIO_BL);
 	if ( GPIO_BL >= 0 ) {
-		gpio_pad_select_gpio( GPIO_BL );
+		//gpio_pad_select_gpio( GPIO_BL );
+		gpio_reset_pin( GPIO_BL );
 		gpio_set_direction( GPIO_BL, GPIO_MODE_OUTPUT );
 		gpio_set_level( GPIO_BL, 0 );
 	}
 
+#if CONFIG_XPT2046
+	spi_bus_config_t buscfg = {
+		.sclk_io_num = GPIO_SCLK,
+		.mosi_io_num = GPIO_MOSI,
+		.miso_io_num = GPIO_MISO,
+		.quadwp_io_num = -1,
+		.quadhd_io_num = -1
+	};
+#else
 	spi_bus_config_t buscfg = {
 		.sclk_io_num = GPIO_SCLK,
 		.mosi_io_num = GPIO_MOSI,
@@ -61,25 +95,60 @@ void spi_master_init(TFT_t * dev, int16_t GPIO_CS, int16_t GPIO_DC, int16_t GPIO
 		.quadwp_io_num = -1,
 		.quadhd_io_num = -1
 	};
+#endif
 
-	ret = spi_bus_initialize( HSPI_HOST, &buscfg, 1 );
+	ret = spi_bus_initialize( LCD_HOST, &buscfg, SPI_DMA_CH_AUTO );
 	ESP_LOGD(TAG, "spi_bus_initialize=%d",ret);
 	assert(ret==ESP_OK);
 
-	spi_device_interface_config_t devcfg={
-		.clock_speed_hz = SPI_Frequency,
-		.spics_io_num = GPIO_CS,
+	spi_device_interface_config_t tft_devcfg={
+		.clock_speed_hz = TFT_Frequency,
+		.spics_io_num = TFT_CS,
 		.queue_size = 7,
 		.flags = SPI_DEVICE_NO_DUMMY,
 	};
 
-	spi_device_handle_t handle;
-	ret = spi_bus_add_device( HSPI_HOST, &devcfg, &handle);
+	spi_device_handle_t tft_handle;
+	ret = spi_bus_add_device( LCD_HOST, &tft_devcfg, &tft_handle);
 	ESP_LOGD(TAG, "spi_bus_add_device=%d",ret);
 	assert(ret==ESP_OK);
 	dev->_dc = GPIO_DC;
 	dev->_bl = GPIO_BL;
-	dev->_SPIHandle = handle;
+	dev->_TFT_Handle = tft_handle;
+
+#if CONFIG_XPT2046
+	ESP_LOGI(TAG, "XPT_CS=%d",XPT_CS);
+	//gpio_pad_select_gpio( XPT_CS );
+	gpio_reset_pin( XPT_CS );
+	gpio_set_direction( XPT_CS, GPIO_MODE_OUTPUT );
+	gpio_set_level( XPT_CS, 1 );
+
+	// set the IRQ as a input
+	ESP_LOGI(TAG, "XPT_IRQ=%d",XPT_IRQ);
+	gpio_config_t io_conf = {};
+	io_conf.intr_type = GPIO_INTR_DISABLE;
+	io_conf.pin_bit_mask = (1ULL<<XPT_IRQ);
+	io_conf.mode = GPIO_MODE_INPUT;
+	io_conf.pull_up_en = 1;
+	gpio_config(&io_conf);
+	//gpio_reset_pin( XPT_IRQ );
+	//gpio_set_direction( XPT_IRQ, GPIO_MODE_DEF_INPUT );
+
+	spi_device_interface_config_t xpt_devcfg={
+		.clock_speed_hz = XPT_Frequency,
+		.spics_io_num = XPT_CS,
+		.queue_size = 7,
+		.flags = SPI_DEVICE_NO_DUMMY,
+	};
+
+	spi_device_handle_t xpt_handle;
+	ret = spi_bus_add_device( LCD_HOST, &xpt_devcfg, &xpt_handle);
+	ESP_LOGD(TAG, "spi_bus_add_device=%d",ret);
+	assert(ret==ESP_OK);
+	dev->_XPT_Handle = xpt_handle;
+	dev->_irq = XPT_IRQ;
+	dev->_calibration = true;
+#endif
 }
 
 
@@ -109,7 +178,7 @@ bool spi_master_write_comm_byte(TFT_t * dev, uint8_t cmd)
 	static uint8_t Byte = 0;
 	Byte = cmd;
 	gpio_set_level( dev->_dc, SPI_Command_Mode );
-	return spi_master_write_byte( dev->_SPIHandle, &Byte, 1 );
+	return spi_master_write_byte( dev->_TFT_Handle, &Byte, 1 );
 }
 
 bool spi_master_write_comm_word(TFT_t * dev, uint16_t cmd)
@@ -118,7 +187,7 @@ bool spi_master_write_comm_word(TFT_t * dev, uint16_t cmd)
 	Byte[0] = (cmd >> 8) & 0xFF;
 	Byte[1] = cmd & 0xFF;
 	gpio_set_level( dev->_dc, SPI_Command_Mode );
-	return spi_master_write_byte( dev->_SPIHandle, Byte, 2 );
+	return spi_master_write_byte( dev->_TFT_Handle, Byte, 2 );
 }
 
 
@@ -127,7 +196,7 @@ bool spi_master_write_data_byte(TFT_t * dev, uint8_t data)
 	static uint8_t Byte = 0;
 	Byte = data;
 	gpio_set_level( dev->_dc, SPI_Data_Mode );
-	return spi_master_write_byte( dev->_SPIHandle, &Byte, 1 );
+	return spi_master_write_byte( dev->_TFT_Handle, &Byte, 1 );
 }
 
 
@@ -137,7 +206,7 @@ bool spi_master_write_data_word(TFT_t * dev, uint16_t data)
 	Byte[0] = (data >> 8) & 0xFF;
 	Byte[1] = data & 0xFF;
 	gpio_set_level( dev->_dc, SPI_Data_Mode );
-	return spi_master_write_byte( dev->_SPIHandle, Byte, 2);
+	return spi_master_write_byte( dev->_TFT_Handle, Byte, 2);
 }
 
 bool spi_master_write_addr(TFT_t * dev, uint16_t addr1, uint16_t addr2)
@@ -148,7 +217,7 @@ bool spi_master_write_addr(TFT_t * dev, uint16_t addr1, uint16_t addr2)
 	Byte[2] = (addr2 >> 8) & 0xFF;
 	Byte[3] = addr2 & 0xFF;
 	gpio_set_level( dev->_dc, SPI_Data_Mode );
-	return spi_master_write_byte( dev->_SPIHandle, Byte, 4);
+	return spi_master_write_byte( dev->_TFT_Handle, Byte, 4);
 }
 
 bool spi_master_write_color(TFT_t * dev, uint16_t color, uint16_t size)
@@ -160,8 +229,22 @@ bool spi_master_write_color(TFT_t * dev, uint16_t color, uint16_t size)
 		Byte[index++] = color & 0xFF;
 	}
 	gpio_set_level( dev->_dc, SPI_Data_Mode );
-	return spi_master_write_byte( dev->_SPIHandle, Byte, size*2);
+	return spi_master_write_byte( dev->_TFT_Handle, Byte, size*2);
 }
+
+// Add 202001
+bool spi_master_write_colors(TFT_t * dev, uint16_t * colors, uint16_t size)
+{
+	static uint8_t Byte[1024];
+	int index = 0;
+	for(int i=0;i<size;i++) {
+		Byte[index++] = (colors[i] >> 8) & 0xFF;
+		Byte[index++] = colors[i] & 0xFF;
+	}
+	gpio_set_level( dev->_dc, SPI_Data_Mode );
+	return spi_master_write_byte( dev->_TFT_Handle, Byte, size*2);
+}
+
 
 void delayMS(int ms) {
 	int _ms = ms + (portTICK_PERIOD_MS - 1);
@@ -196,6 +279,60 @@ void lcdInit(TFT_t * dev, uint16_t model, int width, int height, int offsetx, in
 	dev->_font_direction = DIRECTION0;
 	dev->_font_fill = false;
 	dev->_font_underline = false;
+
+	if (dev->_model == 0x7796) {
+		ESP_LOGI(TAG,"Your TFT is ST7796");
+		ESP_LOGI(TAG,"Screen width:%d",width);
+		ESP_LOGI(TAG,"Screen height:%d",height);
+		spi_master_write_comm_byte(dev, 0xC0);	//Power Control 1
+		spi_master_write_data_byte(dev, 0x10);
+		spi_master_write_data_byte(dev, 0x10);
+
+		spi_master_write_comm_byte(dev, 0xC1);	//Power Control 2
+		spi_master_write_data_byte(dev, 0x41);
+	
+		spi_master_write_comm_byte(dev, 0xC5);	//VCOM Control 1
+		spi_master_write_data_byte(dev, 0x00);
+		spi_master_write_data_byte(dev, 0x22);
+		spi_master_write_data_byte(dev, 0x80);
+		spi_master_write_data_byte(dev, 0x40);
+
+		spi_master_write_comm_byte(dev, 0x36);	//Memory Access Control
+		spi_master_write_data_byte(dev, 0x48);	//Right top start, BGR color filter panel
+		//spi_master_write_data_byte(dev, 0x68);	//Right top start, BGR color filter panel
+
+		spi_master_write_comm_byte(dev, 0xB0);	//Interface Mode Control
+		spi_master_write_data_byte(dev, 0x00);
+
+		spi_master_write_comm_byte(dev, 0xB1);	//Frame Rate Control
+		spi_master_write_data_byte(dev, 0xB0);
+		spi_master_write_data_byte(dev, 0x11);
+
+		spi_master_write_comm_byte(dev, 0xB4);	//Display Inversion Control
+		spi_master_write_data_byte(dev, 0x02);
+
+		spi_master_write_comm_byte(dev, 0xB6);	//Display Function Control
+		spi_master_write_data_byte(dev, 0x02);
+		spi_master_write_data_byte(dev, 0x02);
+		spi_master_write_data_byte(dev, 0x3B);
+
+		spi_master_write_comm_byte(dev, 0xB7);	//Entry Mode Set
+		spi_master_write_data_byte(dev, 0xC6);
+
+		spi_master_write_comm_byte(dev, 0x3A);	//Interface Pixel Format
+		spi_master_write_data_byte(dev, 0x55);
+
+		spi_master_write_comm_byte(dev, 0xF7);	//Adjust Control 3
+		spi_master_write_data_byte(dev, 0xA9);
+		spi_master_write_data_byte(dev, 0x51);
+		spi_master_write_data_byte(dev, 0x2C);
+		spi_master_write_data_byte(dev, 0x82);
+
+		spi_master_write_comm_byte(dev, 0x11);	//Sleep Out
+		delayMS(120);
+
+		spi_master_write_comm_byte(dev, 0x29);	//Display ON
+	} // endif 0x7796
 
 	if (dev->_model == 0x9340 || dev->_model == 0x9341 || dev->_model == 0x7735) {
 		if (dev->_model == 0x9340)
@@ -410,15 +547,14 @@ void lcdDrawPixel(TFT_t * dev, uint16_t x, uint16_t y, uint16_t color){
 	uint16_t _x = x + dev->_offsetx;
 	uint16_t _y = y + dev->_offsety;
 
-	//if (dev->_model == 0x9340 || dev->_model == 0x9341 || dev->_model == 0x7735) {
-	if (dev->_model == 0x9340 || dev->_model == 0x9341) {
+	if (dev->_model == 0x9340 || dev->_model == 0x9341 || dev->_model == 0x7796) {
 		spi_master_write_comm_byte(dev, 0x2A);	// set column(x) address
 		spi_master_write_addr(dev, _x, _x);
 		spi_master_write_comm_byte(dev, 0x2B);	// set Page(y) address
 		spi_master_write_addr(dev, _y, _y);
-		spi_master_write_comm_byte(dev, 0x2C);	//  Memory Write
+		spi_master_write_comm_byte(dev, 0x2C);	// Memory Write
 		spi_master_write_data_word(dev, color);
-	} // endif 0x9340/0x9341
+	} // endif 0x9340/0x9341/0x7796
 
 	if (dev->_model == 0x7735) {
 		spi_master_write_comm_byte(dev, 0x2A);	// set column(x) address
@@ -427,7 +563,7 @@ void lcdDrawPixel(TFT_t * dev, uint16_t x, uint16_t y, uint16_t color){
 		spi_master_write_comm_byte(dev, 0x2B);	// set Page(y) address
 		spi_master_write_data_word(dev, _y);
 		spi_master_write_data_word(dev, _y);
-		spi_master_write_comm_byte(dev, 0x2C);	//  Memory Write
+		spi_master_write_comm_byte(dev, 0x2C);	// Memory Write
 		spi_master_write_data_word(dev, color);
 	} // endif 0x7735
 
@@ -445,12 +581,75 @@ void lcdDrawPixel(TFT_t * dev, uint16_t x, uint16_t y, uint16_t color){
 		lcdWriteRegisterByte(dev, 0x39, _y);
 		lcdWriteRegisterByte(dev, 0x20, _x);
 		lcdWriteRegisterByte(dev, 0x21, _y); 
-		spi_master_write_comm_byte(dev, 0x22);             
+		spi_master_write_comm_byte(dev, 0x22);
 		spi_master_write_data_word(dev, color);
 	} // endif 0x9226
 }
 
-// Draw rectangule of filling
+// Add 202001
+// Draw multi pixel
+// x:X coordinate
+// y:Y coordinate
+// size:Number of colors
+// colors:colors
+void lcdDrawMultiPixels(TFT_t * dev, uint16_t x, uint16_t y, uint16_t size, uint16_t * colors) {
+	if (x+size > dev->_width) return;
+	if (y >= dev->_height) return;
+
+	ESP_LOGD(TAG,"offset(x)=%d offset(y)=%d",dev->_offsetx,dev->_offsety);
+	uint16_t _x1 = x + dev->_offsetx;
+	uint16_t _x2 = _x1 + size;
+	uint16_t _y1 = y + dev->_offsety;
+	uint16_t _y2 = _y1;
+	ESP_LOGD(TAG,"_x1=%d _x2=%d _y1=%d _y2=%d",_x1, _x2, _y1, _y2);
+
+	if (dev->_model == 0x9340 || dev->_model == 0x9341 || dev->_model == 0x7796) {
+		spi_master_write_comm_byte(dev, 0x2A);	// set column(x) address
+		spi_master_write_addr(dev, _x1, _x2);
+		spi_master_write_comm_byte(dev, 0x2B);	// set Page(y) address
+		spi_master_write_addr(dev, _y1, _y2);
+		spi_master_write_comm_byte(dev, 0x2C);	// Memory Write
+		spi_master_write_colors(dev, colors, size);
+	} // endif 0x9340/0x9341/0x7796
+
+	if (dev->_model == 0x7735) {
+		spi_master_write_comm_byte(dev, 0x2A);	// set column(x) address
+		spi_master_write_data_word(dev, _x1);
+		spi_master_write_data_word(dev, _x2);
+		spi_master_write_comm_byte(dev, 0x2B);	// set Page(y) address
+		spi_master_write_data_word(dev, _y1);
+		spi_master_write_data_word(dev, _y2);
+		spi_master_write_comm_byte(dev, 0x2C);	// Memory Write
+		spi_master_write_colors(dev, colors, size);
+	} // 0x7735
+
+	if (dev->_model == 0x9225) {
+		for(int j=_y1;j<=_y2;j++){
+			lcdWriteRegisterByte(dev, 0x20, _x1);
+			lcdWriteRegisterByte(dev, 0x21, j);
+			spi_master_write_comm_byte(dev, 0x22);	// Memory Write
+			spi_master_write_colors(dev, colors, size);
+		}
+	} // endif 0x9225
+
+	if (dev->_model == 0x9226) {
+		for(int j=_x1;j<=_x2;j++) {
+			lcdWriteRegisterByte(dev, 0x36, j);
+			lcdWriteRegisterByte(dev, 0x37, j);
+			lcdWriteRegisterByte(dev, 0x38, _y2);
+			lcdWriteRegisterByte(dev, 0x39, _y1);
+			lcdWriteRegisterByte(dev, 0x20, j);
+			lcdWriteRegisterByte(dev, 0x21, _y1);
+			spi_master_write_comm_byte(dev, 0x22);
+			spi_master_write_colors(dev, colors, size);
+		}
+	} // endif 0x9226
+
+}
+
+
+
+// Draw rectangle of filling
 // x1:Start X coordinate
 // y1:Start Y coordinate
 // x2:End X coordinate
@@ -468,18 +667,17 @@ void lcdDrawFillRect(TFT_t * dev, uint16_t x1, uint16_t y1, uint16_t x2, uint16_
 	uint16_t _y1 = y1 + dev->_offsety;
 	uint16_t _y2 = y2 + dev->_offsety;
 
-	//if (dev->_model == 0x9340 || dev->_model == 0x9341 || dev->_model == 0x7735) {
-	if (dev->_model == 0x9340 || dev->_model == 0x9341) {
+	if (dev->_model == 0x9340 || dev->_model == 0x9341 || dev->_model == 0x7796) {
 		spi_master_write_comm_byte(dev, 0x2A);	// set column(x) address
 		spi_master_write_addr(dev, _x1, _x2);
 		spi_master_write_comm_byte(dev, 0x2B);	// set Page(y) address
 		spi_master_write_addr(dev, _y1, _y2);
-		spi_master_write_comm_byte(dev, 0x2C);	//  Memory Write
+		spi_master_write_comm_byte(dev, 0x2C);	// Memory Write
 		for(int i=_x1;i<=_x2;i++) {
 			uint16_t size = _y2-_y1+1;
 			spi_master_write_color(dev, color, size);
 		}
-	} // endif 0x9340/0x9341
+	} // endif 0x9340/0x9341/0x7796
 
 	if (dev->_model == 0x7735) {
 		spi_master_write_comm_byte(dev, 0x2A);	// set column(x) address
@@ -488,7 +686,7 @@ void lcdDrawFillRect(TFT_t * dev, uint16_t x1, uint16_t y1, uint16_t x2, uint16_
 		spi_master_write_comm_byte(dev, 0x2B);	// set Page(y) address
 		spi_master_write_data_word(dev, _y1);
 		spi_master_write_data_word(dev, _y2);
-		spi_master_write_comm_byte(dev, 0x2C);	//  Memory Write
+		spi_master_write_comm_byte(dev, 0x2C);	// Memory Write
 		for(int i=_x1;i<=_x2;i++) {
 			uint16_t size = _y2-_y1+1;
 			spi_master_write_color(dev, color, size);
@@ -513,7 +711,7 @@ void lcdDrawFillRect(TFT_t * dev, uint16_t x1, uint16_t y1, uint16_t x2, uint16_
 			lcdWriteRegisterByte(dev, 0x39, _y1);
 			lcdWriteRegisterByte(dev, 0x20, j);
 			lcdWriteRegisterByte(dev, 0x21, _y1); 
-			spi_master_write_comm_byte(dev, 0x22);             
+			spi_master_write_comm_byte(dev, 0x22);
 			uint16_t size = _y2-_y1+1;
 			spi_master_write_color(dev, color, size);
 #if 0
@@ -528,9 +726,9 @@ void lcdDrawFillRect(TFT_t * dev, uint16_t x1, uint16_t y1, uint16_t x2, uint16_
 
 // Display OFF
 void lcdDisplayOff(TFT_t * dev) {
-	if (dev->_model == 0x9340 || dev->_model == 0x9341 || dev->_model == 0x7735) {
+	if (dev->_model == 0x9340 || dev->_model == 0x9341 || dev->_model == 0x7735 || dev->_model == 0x7796) {
 		spi_master_write_comm_byte(dev, 0x28);
-	} // endif 0x9340/0x9341/0x7735
+	} // endif 0x9340/0x9341/0x7735/0x7796
 
 	if (dev->_model == 0x9225 || dev->_model == 0x9226) {
 		lcdWriteRegisterByte(dev, 0x07, 0x1014);
@@ -540,9 +738,9 @@ void lcdDisplayOff(TFT_t * dev) {
  
 // Display ON
 void lcdDisplayOn(TFT_t * dev) {
-	if (dev->_model == 0x9340 || dev->_model == 0x9341 || dev->_model == 0x7735) {
+	if (dev->_model == 0x9340 || dev->_model == 0x9341 || dev->_model == 0x7735 || dev->_model == 0x7796) {
 		spi_master_write_comm_byte(dev, 0x29);
-	} // endif 0x9340/0x9341/0x7735
+	} // endif 0x9340/0x9341/0x7735/0x7796
 
 	if (dev->_model == 0x9225 || dev->_model == 0x9226) {
 		lcdWriteRegisterByte(dev, 0x07, 0x1017);
@@ -552,9 +750,9 @@ void lcdDisplayOn(TFT_t * dev) {
 
 // Display Inversion OFF
 void lcdInversionOff(TFT_t * dev) {
-	if (dev->_model == 0x9340 || dev->_model == 0x9341 || dev->_model == 0x7735) {
+	if (dev->_model == 0x9340 || dev->_model == 0x9341 || dev->_model == 0x7735 || dev->_model == 0x7796) {
 		spi_master_write_comm_byte(dev, 0x20);
-	} // endif 0x9340/0x9341/0x7735
+	} // endif 0x9340/0x9341/0x7735/0x7796
 
 	if (dev->_model == 0x9225 || dev->_model == 0x9226) {
 		lcdWriteRegisterByte(dev, 0x07, 0x1017);
@@ -563,9 +761,9 @@ void lcdInversionOff(TFT_t * dev) {
 
 // Display Inversion ON
 void lcdInversionOn(TFT_t * dev) {
-	if (dev->_model == 0x9340 || dev->_model == 0x9341 || dev->_model == 0x7735) {
+	if (dev->_model == 0x9340 || dev->_model == 0x9341 || dev->_model == 0x7735 || dev->_model == 0x7796) {
 		spi_master_write_comm_byte(dev, 0x21);
-	} // endif 0x9340/0x9341/0x7735
+	} // endif 0x9340/0x9341/0x7735/0x7796
 
 	if (dev->_model == 0x9225 || dev->_model == 0x9226) {
 		lcdWriteRegisterByte(dev, 0x07, 0x1013);
@@ -574,10 +772,10 @@ void lcdInversionOn(TFT_t * dev) {
 
 // Change Memory Access Control
 void lcdBGRFilter(TFT_t * dev) {
-	if (dev->_model == 0x9340 || dev->_model == 0x9341 || dev->_model == 0x7735) {
+	if (dev->_model == 0x9340 || dev->_model == 0x9341 || dev->_model == 0x7735 || dev->_model == 0x7796) {
 		spi_master_write_comm_byte(dev, 0x36);	//Memory Access Control
 		spi_master_write_data_byte(dev, 0x00);	//Right top start, RGB color filter panel
-	} // endif 0x9340/0x9341/0x7735
+	} // endif 0x9340/0x9341/0x7735/0x7796
 
 	if (dev->_model == 0x9225 || dev->_model == 0x9226) {
 		lcdWriteRegisterByte(dev, 0x03, 0x0030); // set GRAM write direction and BGR=0.
@@ -622,7 +820,7 @@ void lcdDrawLine(TFT_t * dev, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2
 		}
 	}
 
-/* inclination >= 1 */
+	/* inclination >= 1 */
 	} else {
 		E = -dy;
 		for ( i = 0 ; i <= dy ; i++ ) {
@@ -637,11 +835,11 @@ void lcdDrawLine(TFT_t * dev, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2
 	}
 }
 
-// Draw rectangule
+// Draw rectangle
 // x1:Start X coordinate
 // y1:Start Y coordinate
-// x2:End   X coordinate
-// y2:End   Y coordinate
+// x2:End X coordinate
+// y2:End Y coordinate
 // color:color
 void lcdDrawRect(TFT_t * dev, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color) {
 	lcdDrawLine(dev, x1, y1, x2, y1, color);
@@ -650,7 +848,87 @@ void lcdDrawRect(TFT_t * dev, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2
 	lcdDrawLine(dev, x1, y2, x1, y1, color);
 }
 
-// Draw round
+// Draw rectangle with angle
+// xc:Center X coordinate
+// yc:Center Y coordinate
+// w:Width of rectangle
+// h:Height of rectangle
+// angle :Angle of rectangle
+// color :color
+
+//When the origin is (0, 0), the point (x1, y1) after rotating the point (x, y) by the angle is obtained by the following calculation.
+// x1 = x * cos(angle) - y * sin(angle)
+// y1 = x * sin(angle) + y * cos(angle)
+void lcdDrawRectAngle(TFT_t * dev, uint16_t xc, uint16_t yc, uint16_t w, uint16_t h, uint16_t angle, uint16_t color) {
+		double xd,yd,rd;
+		int x1,y1;
+		int x2,y2;
+		int x3,y3;
+		int x4,y4;
+		rd = -angle * M_PI / 180.0;
+		xd = 0.0 - w/2;
+		yd = h/2;
+		x1 = (int)(xd * cos(rd) - yd * sin(rd) + xc);
+		y1 = (int)(xd * sin(rd) + yd * cos(rd) + yc);
+
+		yd = 0.0 - yd;
+		x2 = (int)(xd * cos(rd) - yd * sin(rd) + xc);
+		y2 = (int)(xd * sin(rd) + yd * cos(rd) + yc);
+
+		xd = w/2;
+		yd = h/2;
+		x3 = (int)(xd * cos(rd) - yd * sin(rd) + xc);
+		y3 = (int)(xd * sin(rd) + yd * cos(rd) + yc);
+
+		yd = 0.0 - yd;
+		x4 = (int)(xd * cos(rd) - yd * sin(rd) + xc);
+		y4 = (int)(xd * sin(rd) + yd * cos(rd) + yc);
+
+		lcdDrawLine(dev, x1, y1, x2, y2, color);
+		lcdDrawLine(dev, x1, y1, x3, y3, color);
+		lcdDrawLine(dev, x2, y2, x4, y4, color);
+		lcdDrawLine(dev, x3, y3, x4, y4, color);
+}
+
+
+// Draw triangle
+// xc:Center X coordinate
+// yc:Center Y coordinate
+// w:Width of triangle
+// h:Height of triangle
+// angle :Angle of triangle
+// color :color
+
+//When the origin is (0, 0), the point (x1, y1) after rotating the point (x, y) by the angle is obtained by the following calculation.
+// x1 = x * cos(angle) - y * sin(angle)
+// y1 = x * sin(angle) + y * cos(angle)
+void lcdDrawTriangle(TFT_t * dev, uint16_t xc, uint16_t yc, uint16_t w, uint16_t h, uint16_t angle, uint16_t color) {
+		double xd,yd,rd;
+		int x1,y1;
+		int x2,y2;
+		int x3,y3;
+		rd = -angle * M_PI / 180.0;
+		xd = 0.0;
+		yd = h/2;
+		x1 = (int)(xd * cos(rd) - yd * sin(rd) + xc);
+		y1 = (int)(xd * sin(rd) + yd * cos(rd) + yc);
+
+		xd = w/2;
+		yd = 0.0 - yd;
+		x2 = (int)(xd * cos(rd) - yd * sin(rd) + xc);
+		y2 = (int)(xd * sin(rd) + yd * cos(rd) + yc);
+
+		xd = 0.0 - w/2;
+		x3 = (int)(xd * cos(rd) - yd * sin(rd) + xc);
+		y3 = (int)(xd * sin(rd) + yd * cos(rd) + yc);
+
+		lcdDrawLine(dev, x1, y1, x2, y2, color);
+		lcdDrawLine(dev, x1, y1, x3, y3, color);
+		lcdDrawLine(dev, x2, y2, x3, y3, color);
+}
+
+
+// Draw circle
 // x0:Central X coordinate
 // y0:Central Y coordinate
 // r:radius
@@ -669,12 +947,12 @@ void lcdDrawCircle(TFT_t * dev, uint16_t x0, uint16_t y0, uint16_t r, uint16_t c
 		lcdDrawPixel(dev, x0-y, y0-x, color); 
 		lcdDrawPixel(dev, x0+x, y0-y, color); 
 		lcdDrawPixel(dev, x0+y, y0+x, color); 
-		if ((old_err=err)<=x)   err+=++x*2+1;
-		if (old_err>y || err>x) err+=++y*2+1;    
+		if ((old_err=err)<=x) err+=++x*2+1;
+		if (old_err>y || err>x) err+=++y*2+1;
 	} while(y<0);
 }
 
-// Draw round of filling
+// Draw circle of filling
 // x0:Central X coordinate
 // y0:Central Y coordinate
 // r:radius
@@ -696,16 +974,16 @@ void lcdDrawFillCircle(TFT_t * dev, uint16_t x0, uint16_t y0, uint16_t r, uint16
 			lcdDrawLine(dev, x0+x, y0-y, x0+x, y0+y, color);
 		} // endif
 		ChangeX=(old_err=err)<=x;
-		if (ChangeX)            err+=++x*2+1;
+		if (ChangeX) err+=++x*2+1;
 		if (old_err>y || err>x) err+=++y*2+1;
 	} while(y<=0);
 } 
 
-// Draw rectangule with round corner
+// Draw rectangle with round corner
 // x1:Start X coordinate
 // y1:Start Y coordinate
-// x2:End   X coordinate
-// y2:End   Y coordinate
+// x2:End X coordinate
+// y2:End Y coordinate
 // r:radius
 // color:color
 void lcdDrawRoundRect(TFT_t * dev, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t r, uint16_t color) {
@@ -718,7 +996,7 @@ void lcdDrawRoundRect(TFT_t * dev, uint16_t x1, uint16_t y1, uint16_t x2, uint16
 	if(x1>x2) {
 		temp=x1; x1=x2; x2=temp;
 	} // endif
-	  
+		
 	if(y1>y2) {
 		temp=y1; y1=y2; y2=temp;
 	} // endif
@@ -739,23 +1017,23 @@ void lcdDrawRoundRect(TFT_t * dev, uint16_t x1, uint16_t y1, uint16_t x2, uint16
 			lcdDrawPixel(dev, x1+r-x, y2-r-y, color); 
 			lcdDrawPixel(dev, x2-r+x, y2-r-y, color);
 		} // endif 
-		if ((old_err=err)<=x)   err+=++x*2+1;
-		if (old_err>y || err>x) err+=++y*2+1;    
+		if ((old_err=err)<=x) err+=++x*2+1;
+		if (old_err>y || err>x) err+=++y*2+1;
 	} while(y<0);
 
 	ESP_LOGD(TAG, "x1+r=%d x2-r=%d",x1+r, x2-r);
-	lcdDrawLine(dev, x1+r,y1  ,x2-r,y1  ,color);
-	lcdDrawLine(dev, x1+r,y2  ,x2-r,y2  ,color);
+	lcdDrawLine(dev, x1+r, y1, x2-r, y1, color);
+	lcdDrawLine(dev, x1+r, y2, x2-r, y2, color);
 	ESP_LOGD(TAG, "y1+r=%d y2-r=%d",y1+r, y2-r);
-	lcdDrawLine(dev, x1  ,y1+r,x1  ,y2-r,color);
-	lcdDrawLine(dev, x2  ,y1+r,x2  ,y2-r,color);  
+	lcdDrawLine(dev, x1, y1+r, x1, y2-r, color);
+	lcdDrawLine(dev, x2, y1+r, x2, y2-r, color);	
 } 
 
 // Draw arrow
-// x1:Start X coordinate
-// y1:Start Y coordinate
-// x2:End   X coordinate
-// y2:End   Y coordinate
+// x0:Start X coordinate
+// y0:Start Y coordinate
+// x1:End X coordinate
+// y1:End Y coordinate
 // w:Width of the botom
 // color:color
 // Thanks http://k-hiura.cocolog-nifty.com/blog/2010/11/post-2a62.html
@@ -763,7 +1041,7 @@ void lcdDrawArrow(TFT_t * dev, uint16_t x0,uint16_t y0,uint16_t x1,uint16_t y1,u
 	double Vx= x1 - x0;
 	double Vy= y1 - y0;
 	double v = sqrt(Vx*Vx+Vy*Vy);
-	//   printf("v=%f\n",v);
+	//printf("v=%f\n",v);
 	double Ux= Vx/v;
 	double Uy= Vy/v;
 
@@ -772,9 +1050,9 @@ void lcdDrawArrow(TFT_t * dev, uint16_t x0,uint16_t y0,uint16_t x1,uint16_t y1,u
 	L[1]= y1 + Ux*w - Uy*v;
 	R[0]= x1 + Uy*w - Ux*v;
 	R[1]= y1 - Ux*w - Uy*v;
-	//   printf("L=%d-%d R=%d-%d\n",L[0],L[1],R[0],R[1]);
+	//printf("L=%d-%d R=%d-%d\n",L[0],L[1],R[0],R[1]);
 
-	//   lcdDrawLine(x0,y0,x1,y1,color);
+	//lcdDrawLine(x0,y0,x1,y1,color);
 	lcdDrawLine(dev, x1, y1, L[0], L[1], color);
 	lcdDrawLine(dev, x1, y1, R[0], R[1], color);
 	lcdDrawLine(dev, L[0], L[1], R[0], R[1], color);
@@ -782,17 +1060,17 @@ void lcdDrawArrow(TFT_t * dev, uint16_t x0,uint16_t y0,uint16_t x1,uint16_t y1,u
 
 
 // Draw arrow of filling
-// x1:Start X coordinate
-// y1:Start Y coordinate
-// x2:End   X coordinate
-// y2:End   Y coordinate
+// x0:Start X coordinate
+// y0:Start Y coordinate
+// x1:End X coordinate
+// y1:End Y coordinate
 // w:Width of the botom
 // color:color
 void lcdDrawFillArrow(TFT_t * dev, uint16_t x0,uint16_t y0,uint16_t x1,uint16_t y1,uint16_t w,uint16_t color) {
 	double Vx= x1 - x0;
 	double Vy= y1 - y0;
 	double v = sqrt(Vx*Vx+Vy*Vy);
-	//   printf("v=%f\n",v);
+	//printf("v=%f\n",v);
 	double Ux= Vx/v;
 	double Uy= Vy/v;
 
@@ -801,7 +1079,7 @@ void lcdDrawFillArrow(TFT_t * dev, uint16_t x0,uint16_t y0,uint16_t x1,uint16_t 
 	L[1]= y1 + Ux*w - Uy*v;
 	R[0]= x1 + Uy*w - Ux*v;
 	R[1]= y1 - Ux*w - Uy*v;
-	//   printf("L=%d-%d R=%d-%d\n",L[0],L[1],R[0],R[1]);
+	//printf("L=%d-%d R=%d-%d\n",L[0],L[1],R[0],R[1]);
 
 	lcdDrawLine(dev, x0, y0, x1, y1, color);
 	lcdDrawLine(dev, x1, y1, L[0], L[1], color);
@@ -814,7 +1092,7 @@ void lcdDrawFillArrow(TFT_t * dev, uint16_t x0,uint16_t y0,uint16_t x1,uint16_t 
 		L[1]= y1 + Ux*ww - Uy*v;
 		R[0]= x1 + Uy*ww - Ux*v;
 		R[1]= y1 - Ux*ww - Uy*v;
-		//     printf("Fill>L=%d-%d R=%d-%d\n",L[0],L[1],R[0],R[1]);
+		//printf("Fill>L=%d-%d R=%d-%d\n",L[0],L[1],R[0],R[1]);
 		lcdDrawLine(dev, x1, y1, L[0], L[1], color);
 		lcdDrawLine(dev, x1, y1, R[0], R[1], color);
 	}
@@ -846,19 +1124,19 @@ int lcdDrawChar(TFT_t * dev, FontxFile *fxs, uint16_t x, uint16_t y, uint8_t asc
 	if(_DEBUG_)printf("GetFontx rc=%d pw=%d ph=%d\n",rc,pw,ph);
 	if (!rc) return 0;
 
-	uint16_t xd1 = 0;
-	uint16_t yd1 = 0;
-	uint16_t xd2 = 0;
-	uint16_t yd2 = 0;
-	uint16_t xss = 0;
-	uint16_t yss = 0;
-	uint16_t xsd = 0;
-	uint16_t ysd = 0;
-	int next = 0;
-        uint16_t x0  = 0;
-        uint16_t x1  = 0;
-        uint16_t y0  = 0;
-        uint16_t y1  = 0;
+	int16_t xd1 = 0;
+	int16_t yd1 = 0;
+	int16_t xd2 = 0;
+	int16_t yd2 = 0;
+	int16_t xss = 0;
+	int16_t yss = 0;
+	int16_t xsd = 0;
+	int16_t ysd = 0;
+	int16_t next = 0;
+	int16_t x0	= 0;
+	int16_t x1	= 0;
+	int16_t y0	= 0;
+	int16_t y1	= 0;
 	if (dev->_font_direction == 0) {
 		xd1 = +1;
 		yd1 = +1; //-1;
@@ -870,10 +1148,10 @@ int lcdDrawChar(TFT_t * dev, FontxFile *fxs, uint16_t x, uint16_t y, uint8_t asc
 		ysd =  0;
 		next = x + pw;
 
-                x0  = x;
-                y0  = y - (ph-1);
-                x1  = x + (pw-1);
-                y1  = y;
+		x0	= x;
+		y0	= y - (ph-1);
+		x1	= x + (pw-1);
+		y1	= y;
 	} else if (dev->_font_direction == 2) {
 		xd1 = -1;
 		yd1 = -1; //+1;
@@ -885,10 +1163,10 @@ int lcdDrawChar(TFT_t * dev, FontxFile *fxs, uint16_t x, uint16_t y, uint8_t asc
 		ysd =  0;
 		next = x - pw;
 
-                x0  = x - (pw-1);
-                y0  = y;
-                x1  = x;
-                y1  = y + (ph-1);
+		x0	= x - (pw-1);
+		y0	= y;
+		x1	= x;
+		y1	= y + (ph-1);
 	} else if (dev->_font_direction == 1) {
 		xd1 =  0;
 		yd1 =  0;
@@ -900,10 +1178,10 @@ int lcdDrawChar(TFT_t * dev, FontxFile *fxs, uint16_t x, uint16_t y, uint8_t asc
 		ysd =  1;
 		next = y + pw; //y - pw;
 
-                x0  = x;
-                y0  = y;
-                x1  = x + (ph-1);
-                y1  = y + (pw-1);
+		x0	= x;
+		y0	= y;
+		x1	= x + (ph-1);
+		y1	= y + (pw-1);
 	} else if (dev->_font_direction == 3) {
 		xd1 =  0;
 		yd1 =  0;
@@ -915,13 +1193,13 @@ int lcdDrawChar(TFT_t * dev, FontxFile *fxs, uint16_t x, uint16_t y, uint8_t asc
 		ysd =  1;
 		next = y - pw; //y + pw;
 
-                x0  = x - (ph-1);
-                y0  = y - (pw-1);
-                x1  = x;
-                y1  = y;
+		x0	= x - (ph-1);
+		y0	= y - (pw-1);
+		x1	= x;
+		y1	= y;
 	}
 
-        if (dev->_font_fill) lcdDrawFillRect(dev, x0, y0, x1, y1, dev->_font_fill_color);
+	if (dev->_font_fill) lcdDrawFillRect(dev, x0, y0, x1, y1, dev->_font_fill_color);
 
 	int bits;
 	if(_DEBUG_)printf("xss=%d yss=%d\n",xss,yss);
@@ -931,7 +1209,7 @@ int lcdDrawChar(TFT_t * dev, FontxFile *fxs, uint16_t x, uint16_t y, uint8_t asc
 	for(h=0;h<ph;h++) {
 		if(xsd) xx = xss;
 		if(ysd) yy = yss;
-		//    for(w=0;w<(pw/8);w++) {
+		//for(w=0;w<(pw/8);w++) {
 		bits = pw;
 		for(w=0;w<((pw+4)/8);w++) {
 			mask = 0x80;
@@ -984,6 +1262,28 @@ int lcdDrawString(TFT_t * dev, FontxFile *fx, uint16_t x, uint16_t y, uint8_t * 
 }
 
 
+// Draw character using code
+// x:X coordinate
+// y:Y coordinate
+// code: charcter code
+// color:color
+int lcdDrawCode(TFT_t * dev, FontxFile *fx, uint16_t x,uint16_t y,uint8_t code,uint16_t color) {
+	if(_DEBUG_)printf("code=%x x=%d y=%d\n",code,x,y);
+	if (dev->_font_direction == 0)
+		x = lcdDrawChar(dev, fx, x, y, code, color);
+	if (dev->_font_direction == 1)
+		y = lcdDrawChar(dev, fx, x, y, code, color);
+	if (dev->_font_direction == 2)
+		x = lcdDrawChar(dev, fx, x, y, code, color);
+	if (dev->_font_direction == 3)
+		y = lcdDrawChar(dev, fx, x, y, code, color);
+	if (dev->_font_direction == 0) return x;
+	if (dev->_font_direction == 2) return x;
+	if (dev->_font_direction == 1) return y;
+	if (dev->_font_direction == 3) return y;
+	return 0;
+}
+
 #if 0
 // Draw SJIS character
 // x:X coordinate
@@ -999,7 +1299,7 @@ int lcdDrawSJISChar(TFT_t * dev, FontxFile *fxs, uint16_t x,uint16_t y,uint16_t 
 	bool rc;
 
 	if(_DEBUG_)printf("_font_direction=%d\n",dev->_font_direction);
-	//  sjis = UTF2SJIS(utf8);
+	//sjis = UTF2SJIS(utf8);
 	//if(_DEBUG_)printf("sjis=%04x\n",sjis);
 
 	rc = GetFontx(fxs, sjis, fonts, &pw, &ph); // SJIS -> Font pattern
@@ -1061,7 +1361,7 @@ int lcdDrawSJISChar(TFT_t * dev, FontxFile *fxs, uint16_t x,uint16_t y,uint16_t 
 	for(h=0;h<ph;h++) {
 		if(xsd) xx = xss;
 		if(ysd) yy = yss;
-		//    for(w=0;w<(pw/8);w++) {
+		//for(w=0;w<(pw/8);w++) {
 		bits = pw;
 		for(w=0;w<((pw+4)/8);w++) {
 			mask = 0x80;
@@ -1185,12 +1485,13 @@ void lcdBacklightOn(TFT_t * dev) {
 // vsa:Vertical Scrolling Area
 // bfa:Bottom Fixed Area
 void lcdSetScrollArea(TFT_t * dev, uint16_t tfa, uint16_t vsa, uint16_t bfa){
-	if (dev->_model == 0x9340 || dev->_model == 0x9341) {
+	if (dev->_model == 0x9340 || dev->_model == 0x9341 || dev->_model == 0x7796) {
 		spi_master_write_comm_byte(dev, 0x33);	// Vertical Scrolling Definition
 		spi_master_write_data_word(dev, tfa);
 		spi_master_write_data_word(dev, vsa);
 		spi_master_write_data_word(dev, bfa);
-	} // endif 0x9340/0x9341
+		//spi_master_write_comm_byte(dev, 0x12);	// Partial Mode ON
+	} // endif 0x9340/0x9341/0x7796
 
 	if (dev->_model == 0x9225 || dev->_model == 0x9226) {
 		lcdWriteRegisterByte(dev, 0x31, vsa);	// Specify scroll end and step at the scroll display
@@ -1204,13 +1505,30 @@ void lcdSetScrollArea(TFT_t * dev, uint16_t tfa, uint16_t vsa, uint16_t bfa){
 	} // endif 0x9225/0x9226
 }
 
+void lcdResetScrollArea(TFT_t * dev, uint16_t vsa){
+	if (dev->_model == 0x9340 || dev->_model == 0x9341 || dev->_model == 0x7796) {
+		spi_master_write_comm_byte(dev, 0x33);	// Vertical Scrolling Definition
+		spi_master_write_data_word(dev, 0);
+		//spi_master_write_data_word(dev, 0x140);
+		spi_master_write_data_word(dev, vsa);
+		spi_master_write_data_word(dev, 0);
+	} // endif 0x9340/0x9341/0x7796
+
+	if (dev->_model == 0x9225 || dev->_model == 0x9226) {
+		lcdWriteRegisterByte(dev, 0x31, 0x0);	// Specify scroll end and step at the scroll display
+		lcdWriteRegisterByte(dev, 0x32, 0x0);	// Specify scroll start and step at the scroll display
+		//lcdWriteRegisterByte(dev, 0x31, vsa);	// Specify scroll end and step at the scroll display
+		//lcdWriteRegisterByte(dev, 0x32, tfa);	// Specify scroll start and step at the scroll display
+	} // endif 0x9225/0x9226
+}
+
 // Vertical Scrolling Start Address
 // vsp:Vertical Scrolling Start Address
 void lcdScroll(TFT_t * dev, uint16_t vsp){
-	if (dev->_model == 0x9340 || dev->_model == 0x9341) {
+	if (dev->_model == 0x9340 || dev->_model == 0x9341 || dev->_model == 0x7796) {
 		spi_master_write_comm_byte(dev, 0x37);	// Vertical Scrolling Start Address
 		spi_master_write_data_word(dev, vsp);
-	} // endif 0x9340/0x9341
+	} // endif 0x9340/0x9341/0x7796
 
 	if (dev->_model == 0x9225 || dev->_model == 0x9226) {
 		lcdWriteRegisterByte(dev, 0x33, vsp);	// Vertical Scrolling Start Address
@@ -1221,3 +1539,49 @@ void lcdScroll(TFT_t * dev, uint16_t vsp){
 	} // endif 0x9225/0x9226
 }
 
+#define MAX_LEN 3
+#define	XPT_START	0x80
+#define XPT_XPOS	0x50
+#define XPT_YPOS	0x10
+#define XPT_8BIT  0x80
+#define XPT_SER		0x04
+#define XPT_DEF		0x03
+
+
+int xptGetit(TFT_t * dev, int cmd){
+	char rbuf[MAX_LEN];
+	char wbuf[MAX_LEN];
+
+	memset(wbuf, 0, sizeof(rbuf));
+	memset(rbuf, 0, sizeof(rbuf));
+	wbuf[0] = cmd;
+	spi_transaction_t SPITransaction;
+	esp_err_t ret;
+
+	memset( &SPITransaction, 0, sizeof( spi_transaction_t ) );
+	SPITransaction.length = MAX_LEN * 8;
+	SPITransaction.tx_buffer = wbuf;
+	SPITransaction.rx_buffer = rbuf;
+#if 1
+	ret = spi_device_transmit( dev->_XPT_Handle, &SPITransaction );
+#else
+	ret = spi_device_polling_transmit( dev->_XPT_Handle, &SPITransaction );
+#endif
+	assert(ret==ESP_OK); 
+	ESP_LOGD(TAG, "rbuf[0]=%02x rbuf[1]=%02x rbuf[2]=%02x", rbuf[0], rbuf[1], rbuf[2]);
+	// 12bit Conversion
+	//int pos = (rbuf[1]<<8)+rbuf[2];
+	int pos = (rbuf[1]<<4)+(rbuf[2]>>4);
+	return(pos);
+}
+
+void xptGetxy(TFT_t * dev, int *xp, int *yp){
+#if 0
+	*xp = xptGetit(dev, (XPT_START | XPT_XPOS) );
+	*yp = xptGetit(dev, (XPT_START | XPT_YPOS) );
+#endif
+#if 1
+	*xp = xptGetit(dev, (XPT_START | XPT_XPOS | XPT_SER) );
+	*yp = xptGetit(dev, (XPT_START | XPT_YPOS | XPT_SER) );
+#endif
+}
