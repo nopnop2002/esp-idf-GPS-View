@@ -66,16 +66,16 @@ This project can be used as a GPS Server for u-center.
 
 
 # Operation
-When button A(Left button) is pressed, the display starts.
-Press button A(Left button) again to stop the display.
+When button A(Left button) is pressed, the display starts.   
+Press button A(Left button) again to stop the display.   
 ![View-2](https://user-images.githubusercontent.com/6020549/62000282-f84d0880-b10d-11e9-95fb-19ef2ebcbae9.JPG)
 
-When button B(Middle button) is pressed, a single message is displayed.
+When button B(Middle button) is pressed, a single message is displayed.   
 ![View-3](https://user-images.githubusercontent.com/6020549/62000277-f7b47200-b10d-11e9-9263-84c08dd6985b.JPG)
 ![View-4](https://user-images.githubusercontent.com/6020549/62000278-f7b47200-b10d-11e9-8409-6d61981b655a.JPG)
 
 
-When button C(Right button) is pressed, Formatted-View is displayed.
+When button C(Right button) is pressed, Formatted-View is displayed.   
 ![View-5](https://user-images.githubusercontent.com/6020549/62000279-f84d0880-b10d-11e9-8c2d-de1d76d25c33.JPG)
 ![View-6](https://user-images.githubusercontent.com/6020549/62000280-f84d0880-b10d-11e9-9c73-c38ffd0927dd.JPG)
 
