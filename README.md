@@ -9,8 +9,6 @@ esp-idf v4.4/v5.0
 - M5Stack   
 - GPS module like NEO-6M   
 
- Because uart_enable_pattern_det_intr() has been changed to uart_enable_pattern_det_baud_intr().
-
 # Wireing to GPS
 You can use GROVE port as UART Connection.   
 
