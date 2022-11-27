@@ -40,7 +40,10 @@ void uart_event_task(void *pvParameters)
 		.data_bits = UART_DATA_8_BITS,
 		.parity = UART_PARITY_DISABLE,
 		.stop_bits = UART_STOP_BITS_1,
-		.flow_ctrl = UART_HW_FLOWCTRL_DISABLE
+		.flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+#if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0))
+		.source_clk = UART_SCLK_DEFAULT,
+#endif
 	};
 	uart_param_config(UART_NUM_1, &uart_config);
 

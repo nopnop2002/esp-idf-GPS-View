@@ -2,12 +2,13 @@
 GPS NMEA Viewer for M5Stack.   
 You can view NMEA message.
 
+# Software requirements
+esp-idf v4.4/v5.0   
+
 # Hardware requirements
 - M5Stack   
 - GPS module like NEO-6M   
 
-# Software requirements
-- esp-idf ver4.1 or later   
  Because uart_enable_pattern_det_intr() has been changed to uart_enable_pattern_det_baud_intr().
 
 # Wireing to GPS
@@ -31,6 +32,7 @@ You can choice UART RXD GPIO using menuconfig.
 ```
 git clone https://github.com/nopnop2002/esp-idf-GPS-View
 cd esp-idf-GPS-View
+idf.py set-target esp32
 idf.py menuconfig
 idf.py flash
 ```
@@ -56,7 +58,7 @@ The GPS module has TX and RX, but this project uses only TX.
 
 - For ST Mode
 
-![config-wifi-2](https://user-images.githubusercontent.com/6020549/167273739-88195db2-e72c-4c37-b79b-f00c9bdfd6b6.jpg)
+![config-wifi-2](https://user-images.githubusercontent.com/6020549/204119872-01ca042a-a770-47c2-82c8-85a1da1c9ffc.jpg)
 
 ## TCP Server Setting
 

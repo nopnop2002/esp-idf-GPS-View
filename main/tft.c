@@ -24,8 +24,8 @@
 
 static const char *TAG = "TFT";
 
-#define SCREEN_WIDTH	320
-#define SCREEN_HEIGHT	240
+#define SCREEN_WIDTH 320
+#define SCREEN_HEIGHT 240
 #define GPIO_MOSI 23
 #define GPIO_SCLK 18
 #define GPIO_CS 14
@@ -36,9 +36,9 @@ static const char *TAG = "TFT";
 #define GPIO_XPT_CS -1
 #define GPIO_XPT_IRQ -1
 #define DISPLAY_LENGTH	26
-#define GPIO_INPUT_A	GPIO_NUM_39
-#define GPIO_INPUT_B	GPIO_NUM_38
-#define GPIO_INPUT_C	GPIO_NUM_37
+#define GPIO_INPUT_A GPIO_NUM_39
+#define GPIO_INPUT_B GPIO_NUM_38
+#define GPIO_INPUT_C GPIO_NUM_37
 
 extern QueueHandle_t xQueueCmd;
 extern QueueHandle_t xQueueTcp;
