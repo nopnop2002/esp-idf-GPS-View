@@ -3,7 +3,7 @@ GPS NMEA Viewer for M5Stack.
 You can view NMEA message.
 
 # Software requirements
-esp-idf v4.4/v5.0   
+esp-idf v4.4/v5.x   
 
 # Hardware requirements
 - M5Stack   
